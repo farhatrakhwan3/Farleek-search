@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Search | Modern Experience</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        darkBg: '#0f172a',
+                        surface: '#1e293b',
+                        accent: '#38bdf8',
+                    },
+                    animation: {
+                        'glow': 'glow 3s infinite alternate',
+                        'slide-up': 'slideUp 0.4s ease-out forwards',
+                    },
+                    keyframes: {
+                        glow: {
+                            '0%': { 'box-shadow': '0 0 5px rgba(56, 189, 248, 0.2)' },
+                            '100%': { 'box-shadow': '0 0 20px rgba(56, 189, 248, 0.5)' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #0f172a; color: #f1f5f9; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #38bdf8; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    </style>
+</head>
+<body class="antialiased min-h-screen">
+
+    <div id="main-container" class="w-full max-w-4xl mx-auto px-4 flex flex-col min-h-screen transition-all duration-700 justify-center">
+        
+        <header id="search-header" class="w-full flex flex-col items-center transition-all duration-500">
+            <div id="logo-container" class="mb-10 text-center transition-all duration-500">
+                <h1 class="text-5xl sm:text-6xl font-extrabold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-accent">
+                    Far<span class="text-accent">leek</span>
+                </h1>
+                <p id="tagline" class="mt-3 text-slate-400 font-light tracking-widest uppercase text-xs">Intelligence across the web</p>
+            </div>
+
+            <div class="relative w-full max-w-2xl group z-10">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-5 pointer-events-none">
+                    <svg class="w-5 h-5 text-slate-500 group-focus-within:text-accent transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                <input 
+                    type="text" 
+                    id="search-input"
+                    class="block w-full p-5 pl-14 text-md text-white glass rounded-2xl focus:ring-2 focus:ring-accent/50 focus:outline-none transition-all placeholder:text-slate-500 hover:bg-slate-800/50" 
+                    placeholder="Ask anything..." 
+                    autocomplete="off"
+                >
+                <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                    <button id="search-btn" class="p-3 bg-accent text-darkBg rounded-xl hover:scale-105 hover:brightness-110 transition-all active:scale-95 shadow-lg shadow-accent/20">
+                        <svg class="w-5 h-5 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div id="loader" class="hidden mt-20 flex flex-col items-center w-full">
+            <div class="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin"></div>
+            <p class="mt-4 text-slate-400 text-sm animate-pulse">Scanning the matrix...</p>
+        </div>
+
+        <main id="results-container" class="w-full mt-12 pb-20 hidden space-y-4">
+            </main>
+    </div>
+
+    <script>
+        const API_KEY = "AIzaSyCzrid_kRx53qCv-oSERfaNRnBed5ZOuGw";
+        const CX_ID = "83a9ebbdbaad04a68"; 
+
+        const mainContainer = document.getElementById('main-container');
+        const logoContainer = document.getElementById('logo-container');
+        const tagline = document.getElementById('tagline');
+        const searchInput = document.getElementById('search-input');
+        const searchBtn = document.getElementById('search-btn');
+        const resultsContainer = document.getElementById('results-container');
+        const loader = document.getElementById('loader');
+
+        // Check for search query in URL on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const query = params.get('q');
+            if (query) {
+                searchInput.value = query;
+                performSearch(false); // don't update URL again
+            }
+        });
+
+        searchBtn.addEventListener('click', () => performSearch(true));
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch(true);
+        });
+
+        async function performSearch(updateURL = true) {
+            const query = searchInput.value.trim();
+            if (!query) return;
+
+            // Update URL search ID (?q=...)
+            if (updateURL) {
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.set('q', query);
+                window.history.pushState({}, '', newUrl);
+            }
+
+            // Layout Transition
+            mainContainer.classList.remove('justify-center');
+            mainContainer.classList.add('pt-10');
+            logoContainer.classList.replace('mb-10', 'mb-6');
+            logoContainer.querySelector('h1').className = "text-3xl font-extrabold tracking-tighter text-white";
+            tagline.classList.add('hidden');
+            
+            resultsContainer.innerHTML = '';
+            resultsContainer.classList.add('hidden');
+            loader.classList.remove('hidden');
+
+            try {
+                const url = `https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${CX_ID}&q=${encodeURIComponent(query)}`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                loader.classList.add('hidden');
+                resultsContainer.classList.remove('hidden');
+
+                if (data.error) {
+                    showError(data.error.message);
+                    return;
+                }
+                if (!data.items) {
+                    resultsContainer.innerHTML = `<div class="text-center text-slate-400 py-20 glass rounded-2xl">No results found for "${query}"</div>`;
+                    return;
+                }
+
+                renderResults(data.items);
+            } catch (error) {
+                loader.classList.add('hidden');
+                showError("Connection failed. Check your network.");
+            }
+        }
+
+        function renderResults(items) {
+            items.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = "glass p-6 rounded-2xl hover:bg-slate-800/40 transition-all duration-300 animate-slide-up opacity-0";
+                card.style.animationDelay = `${index * 70}ms`;
+
+                card.innerHTML = `
+                    <div class="flex flex-col">
+                        <span class="text-xs font-mono text-accent/70 mb-2 truncate">${item.displayLink}</span>
+                        <a href="${item.link}" target="_blank" class="group">
+                            <h3 class="text-xl font-medium text-white group-hover:text-accent transition-colors mb-2">
+                                ${item.title}
+                            </h3>
+                        </a>
+                        <p class="text-slate-400 text-sm leading-relaxed line-clamp-2">
+                            ${item.snippet}
+                        </p>
+                    </div>
+                `;
+                resultsContainer.appendChild(card);
+            });
+        }
+
+        function showError(msg) {
+            resultsContainer.classList.remove('hidden');
+            resultsContainer.innerHTML = `
+                <div class="border border-red-500/20 bg-red-500/10 text-red-400 p-4 rounded-xl text-center">
+                    ${msg}
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
